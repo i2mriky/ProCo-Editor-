@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ProEdit Mobile V2</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- CodeMirror Core & Dependencies -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/neo.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#3b82f6', // blue-500
+                            600: '#2563eb', // blue-600
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Styles */
+        body { -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
+
+        /* CodeMirror Customization */
+        .CodeMirror {
+            height: 100%;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        @media (max-width: 640px) { .CodeMirror { font-size: 13px; } }
+
+        /* Transitions */
+        .view-section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .view-section.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* File Card Hover Effect */
+        .file-card:active { transform: scale(0.98); }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 h-screen w-screen overflow-hidden flex flex-col">
+
+    <!-- ================= DASHBOARD VIEW ================= -->
+    <div id="dashboardView" class="view-section active flex-col h-full absolute inset-0 z-10 bg-gray-50 dark:bg-gray-900 overflow-y-auto">
+        <!-- Dashboard Header -->
+        <header class="px-6 py-6 bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-20">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-3xl font-bold tracking-tight">ProEdit</h1>
+                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <i data-lucide="moon" id="dashThemeIcon" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="createNewFilePrompt()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex items-center justify-center font-semibold shadow-lg shadow-blue-500/20 transition-all">
+                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i> New File
+                </button>
+                <label class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-3 rounded-xl flex items-center justify-center font-semibold cursor-pointer transition-all">
+                    <i data-lucide="upload" class="w-5 h-5 mr-2"></i> Import
+                    <input type="file" id="fileInput" class="hidden" onchange="importFile(this)">
+                </label>
+            </div>
+        </header>
+
+        <!-- Recent Files List -->
+        <main class="flex-1 p-6">
+            <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Recent Files</h2>
+            <div id="fileList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Files will be injected here via JS -->
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden flex flex-col items-center justify-center py-12 text-gray-400">
+                <i data-lucide="file-code" class="w-16 h-16 mb-3 opacity-20"></i>
+                <p>No files yet. Create one to start!</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= EDITOR VIEW ================= -->
+    <div id="editorView" class="view-section flex-col h-full absolute inset-0 z-20 bg-white dark:bg-gray-900">
+        <!-- Editor Header -->
+        <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-2 flex items-center justify-between shadow-sm shrink-0">
+            <div class="flex items-center">
+                <button onclick="saveAndGoHome()" class="p-2 mr-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <div>
+                    <input type="text" id="fileNameInput" class="bg-transparent font-semibold focus:outline-none focus:border-b border-blue-500 w-32 sm:w-48 text-sm sm:text-base truncate" value="untitled.html" onchange="updateCurrentFileName(this.value)">
+                    <p id="lastSavedLabel" class="text-xs text-gray-400">Saved locally</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-1 sm:space-x-2">
+                <!-- Download Button -->
+                <button onclick="downloadCurrentFile()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full" title="Download to Device">
+                    <i data-lucide="download" class="w-5 h-5"></i>
+                </button>
+                
+                <!-- Search Toggle -->
+                <button onclick="toggleSearch()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                    <i data-lucide="search" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Run Button -->
+                <button onclick="runCode()" class="ml-1 px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-full font-medium text-sm flex items-center shadow-md">
+                    <i data-lucide="play" class="w-4 h-4 mr-1"></i> <span class="hidden sm:inline">Run</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search Toolbar (Hidden) -->
+        <div id="searchBar" class="hidden bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-2 animate-in slide-in-from-top duration-200 shrink-0">
+            <div class="flex space-x-2 max-w-2xl mx-auto">
+                <input type="text" id="searchInput" placeholder="Find..." class="flex-1 px-3 py-1 text-sm rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500">
+                <button onclick="findNext()" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded"><i data-lucide="arrow-down" class="w-4 h-4"></i></button>
+                <input type="text" id="replaceInput" placeholder="Replace..." class="flex-1 px-3 py-1 text-sm rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500">
+                <button onclick="replace()" class="px-3 py-1 bg-blue-600 text-white rounded text-xs uppercase font-bold">Rep</button>
+            </div>
+        </div>
+
+        <!-- CodeMirror Container -->
+        <main class="flex-1 relative overflow-hidden">
+            <textarea id="codeEditor"></textarea>
+        </main>
+    </div>
+
+    <!-- ================= PREVIEW / RUN VIEW ================= -->
+    <div id="previewView" class="view-section flex-col h-full absolute inset-0 z-30 bg-white dark:bg-gray-900 translate-x-full transition-transform duration-300">
+        <div class="bg-gray-800 text-white px-4 py-2 flex items-center justify-between shadow-md shrink-0">
+            <div class="flex items-center">
+                <button onclick="closePreview()" class="mr-3 p-1 hover:bg-gray-700 rounded-full transition-colors">
+                    <i data-lucide="arrow-left" class="w-6 h-6 text-white"></i>
+                </button>
+                <span class="font-semibold text-sm">Running...</span>
+            </div>
+            <button onclick="runCode()" class="p-1 hover:bg-gray-700 rounded" title="Reload">
+                <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="flex-1 relative bg-white">
+            <iframe id="previewFrame" class="w-full h-full border-none"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // --- Initialization ---
+        lucide.createIcons();
+        
+        let files = JSON.parse(localStorage.getItem('proedit_files') || '[]');
+        let currentFileId = null;
+        let editor = null;
+        let darkMode = false;
+
+        // Initialize CodeMirror
+        const textarea = document.getElementById('codeEditor');
+        editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'htmlmixed',
+            lineNumbers: true,
+            theme: 'neo',
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            tabSize: 4,
+            indentUnit: 4
+        });
+
+        // Auto-save on change
+        editor.on('change', () => {
+            if (currentFileId) {
+                const fileIndex = files.findIndex(f => f.id === currentFileId);
+                if (fileIndex !== -1) {
+                    files[fileIndex].content = editor.getValue();
+                    files[fileIndex].lastModified = Date.now();
+                    saveToStorage();
+                    document.getElementById('lastSavedLabel').innerText = "Saved just now";
+                }
+            }
+        });
+
+        // --- View Management ---
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.remove('active');
+                if(el.id === 'previewView') el.classList.remove('translate-x-0'); // reset slide
+                if(el.id === 'previewView') el.classList.add('translate-x-full'); 
+            });
+
+            if (viewId === 'previewView') {
+                // Keep editor active behind, but slide preview in
+                document.getElementById('editorView').classList.add('active');
+                const pv = document.getElementById('previewView');
+                pv.classList.add('active');
+                requestAnimationFrame(() => {
+                    pv.classList.remove('translate-x-full');
+                    pv.classList.add('translate-x-0');
+                });
+            } else {
+                document.getElementById(viewId).classList.add('active');
+            }
+        }
+
+        function saveAndGoHome() {
+            saveToStorage();
+            renderFileList();
+            switchView('dashboardView');
+            currentFileId = null;
+        }
+
+        // --- File Management ---
+        function saveToStorage() {
+            localStorage.setItem('proedit_files', JSON.stringify(files));
+        }
+
+        function createNewFilePrompt() {
+            const name = prompt("Enter file name (e.g., myscript.js):", "untitled.html");
+            if (name) {
+                const newFile = {
+                    id: Date.now().toString(),
+                    name: name,
+                    content: getTemplate(name),
+                    mode: getModeFromExt(name),
+                    lastModified: Date.now()
+                };
+                files.unshift(newFile);
+                saveToStorage();
+                openFile(newFile.id);
+            }
+        }
+
+        function getTemplate(filename) {
+            if (filename.endsWith('.js')) return '// New JavaScript File\nconsole.log("Hello!");';
+            if (filename.endsWith('.css')) return '/* New CSS File */\nbody { background: #fff; }';
+            if (filename.endsWith('.html')) return '<!DOCTYPE html>\n<html>\n<head>\n  <title>New Page</title>\n</head>\n<body>\n  <h1>Hello World</h1>\n</body>\n</html>';
+            return '';
+        }
+
+        function getModeFromExt(filename) {
+            if (filename.endsWith('.js')) return 'javascript';
+            if (filename.endsWith('.css')) return 'css';
+            return 'htmlmixed';
+        }
+
+        function importFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const newFile = {
+                    id: Date.now().toString(),
+                    name: file.name,
+                    content: e.target.result,
+                    mode: getModeFromExt(file.name),
+                    lastModified: Date.now()
+                };
+                files.unshift(newFile);
+                saveToStorage();
+                openFile(newFile.id);
+                input.value = ''; // Reset input
+            };
+            reader.readAsText(file);
+        }
+
+        function openFile(id) {
+            const file = files.find(f => f.id === id);
+            if (!file) return;
+
+            currentFileId = id;
+            document.getElementById('fileNameInput').value = file.name;
+            editor.setOption('mode', file.mode);
+            editor.setValue(file.content);
+            editor.clearHistory();
+            switchView('editorView');
+            
+            // Refresh editor layout after visibility change
+            setTimeout(() => editor.refresh(), 50);
+        }
+
+        function deleteFile(id, e) {
+            e.stopPropagation(); // Prevent opening the file
+            if(confirm("Are you sure you want to delete this file?")) {
+                files = files.filter(f => f.id !== id);
+                saveToStorage();
+                renderFileList();
+            }
+        }
+
+        function downloadCurrentFile() {
+            if (!currentFileId) return;
+            const file = files.find(f => f.id === currentFileId);
+            const blob = new Blob([file.content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function updateCurrentFileName(newName) {
+            if (currentFileId) {
+                const file = files.find(f => f.id === currentFileId);
+                file.name = newName;
+                file.mode = getModeFromExt(newName);
+                editor.setOption('mode', file.mode);
+                saveToStorage();
+            }
+        }
+
+        // --- UI Rendering ---
+        function renderFileList() {
+            const list = document.getElementById('fileList');
+            const empty = document.getElementById('emptyState');
+            list.innerHTML = '';
+
+            if (files.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                empty.classList.add('hidden');
+                files.forEach(file => {
+                    const date = new Date(file.lastModified).toLocaleDateString();
+                    
+                    // Determine Icon
+                    let iconHtml = '<i data-lucide="file-code" class="w-8 h-8 text-blue-500 mb-3"></i>';
+                    if(file.name.endsWith('.js')) iconHtml = '<i data-lucide="file-json" class="w-8 h-8 text-yellow-500 mb-3"></i>';
+                    if(file.name.endsWith('.css')) iconHtml = '<i data-lucide="palette" class="w-8 h-8 text-pink-500 mb-3"></i>';
+
+                    const card = document.createElement('div');
+                    card.className = "file-card bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all cursor-pointer relative group";
+                    card.onclick = () => openFile(file.id);
+                    
+                    card.innerHTML = `
+                        <div class="flex flex-col items-start">
+                            ${iconHtml}
+                            <h3 class="font-bold text-gray-800 dark:text-gray-100 truncate w-full">${file.name}</h3>
+                            <p class="text-xs text-gray-400 mt-1">Edited: ${date}</p>
+                        </div>
+                        <button onclick="deleteFile('${file.id}', event)" class="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    `;
+                    list.appendChild(card);
+                });
+                lucide.createIcons();
+            }
+        }
+
+        // --- Theme System ---
+        function toggleTheme() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('dark');
+            editor.setOption('theme', darkMode ? 'dracula' : 'neo');
+            
+            const iconName = darkMode ? 'sun' : 'moon';
+            document.getElementById('dashThemeIcon').setAttribute('data-lucide', iconName);
+            lucide.createIcons();
+        }
+
+        // Check System Prefs
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            toggleTheme();
+        }
+
+        // --- Search System ---
+        function toggleSearch() {
+            const bar = document.getElementById('searchBar');
+            bar.classList.toggle('hidden');
+            if(!bar.classList.contains('hidden')) document.getElementById('searchInput').focus();
+        }
+
+        function findNext() {
+            const query = document.getElementById('searchInput').value;
+            if(!query) return;
+            editor.getSearchCursor(query).findNext() ? editor.getSearchCursor(query).findNext() : null; // Simplified
+            // Re-implementing basic search logic for brevity
+            const cursor = editor.getSearchCursor(query, editor.getCursor());
+            if (!cursor.findNext()) {
+                const cursorStart = editor.getSearchCursor(query, {line: 0, ch: 0});
+                if (cursorStart.findNext()) {
+                    editor.setSelection(cursorStart.from(), cursorStart.to());
+                    editor.scrollIntoView({from: cursorStart.from(), to: cursorStart.to()}, 20);
+                }
+            } else {
+                editor.setSelection(cursor.from(), cursor.to());
+                editor.scrollIntoView({from: cursor.from(), to: cursor.to()}, 20);
+            }
+        }
+
+        function replace() {
+            const query = document.getElementById('searchInput').value;
+            const replacement = document.getElementById('replaceInput').value;
+            if(editor.getSelection() === query) {
+                editor.replaceSelection(replacement);
+                findNext();
+            } else {
+                findNext();
+            }
+        }
+
+        // --- Run / Preview ---
+        function runCode() {
+            const content = editor.getValue();
+            const frame = document.getElementById('previewFrame');
+            const doc = frame.contentWindow.document;
+
+            switchView('previewView');
+
+            // Handle Console logs for JS files
+            let codeToRun = content;
+            if (editor.getOption('mode') === 'javascript') {
+                codeToRun = `
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family: monospace; padding: 20px;">
+                    <h3 style="color: #666; border-bottom: 1px solid #ccc; padding-bottom: 10px;">Console Output:</h3>
+                    <div id="logs"></div>
+                    <script>
+                        const log = console.log;
+                        const output = document.getElementById('logs');
+                        console.log = function(...args) {
+                            args.forEach(arg => {
+                                const d = document.createElement('div');
+                                d.textContent = "> " + (typeof arg === 'object' ? JSON.stringify(arg) : arg);
+                                d.style.padding = "4px 0";
+                                d.style.borderBottom = "1px solid #eee";
+                                output.appendChild(d);
+                            });
+                            log.apply(console, args);
+                        };
+                        try { ${content} } catch(e) { console.log("Error: " + e.message); }
+                    <\/script>
+                </body>
+                </html>`;
+            }
+
+            doc.open();
+            doc.write(codeToRun);
+            doc.close();
+        }
+
+        function closePreview() {
+            document.getElementById('previewView').classList.remove('translate-x-0');
+            document.getElementById('previewView').classList.add('translate-x-full');
+            // Wait for transition then hide active class
+            setTimeout(() => {
+                document.getElementById('previewView').classList.remove('active');
+            }, 300);
+        }
+
+        // Initial Render
+        renderFileList();
+
+    </script>
+</body>
+</html>
