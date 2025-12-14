@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ProEdit Mobile V4</title>
+    <title>ProEdit Mobile V5</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -105,6 +105,15 @@
             display: flex;
             opacity: 1;
         }
+
+        /* Structure Navigation Panel */
+        .structure-panel {
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .structure-panel.open {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 h-screen w-screen overflow-hidden flex flex-col">
@@ -114,7 +123,7 @@
         <header class="px-6 py-6 bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-20">
             <div class="flex justify-between items-center mb-4">
                 <div>
-                    <h1 class="text-3xl font-bold tracking-tight text-blue-600 dark:text-blue-400">ProEdit <span class="text-xs align-top text-gray-400">v4</span></h1>
+                    <h1 class="text-3xl font-bold tracking-tight text-blue-600 dark:text-blue-400">ProEdit <span class="text-xs align-top text-gray-400">v5</span></h1>
                     <p class="text-xs text-gray-500">Professional Mobile IDE</p>
                 </div>
                 <button onclick="toggleTheme()" class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
@@ -161,23 +170,30 @@
                     <i data-lucide="chevron-left" class="w-6 h-6"></i>
                 </button>
                 <div class="flex flex-col min-w-0">
-                    <input type="text" id="fileNameInput" class="bg-transparent font-bold text-gray-800 dark:text-gray-100 focus:outline-none text-sm w-28 sm:w-40 truncate" value="script.js" onchange="updateCurrentFileName(this.value)">
+                    <input type="text" id="fileNameInput" class="bg-transparent font-bold text-gray-800 dark:text-gray-100 focus:outline-none text-sm w-28 sm:w-32 truncate" value="script.js" onchange="updateCurrentFileName(this.value)">
                 </div>
             </div>
 
             <!-- Toolbar Actions -->
-            <div class="flex items-center space-x-1">
-                <!-- Undo/Redo (NEW) -->
-                <button onclick="editor.undo()" class="p-2 text-gray-500 hover:text-gray-800 dark:hover:text-white" title="Undo">
-                    <i data-lucide="undo-2" class="w-4 h-4"></i>
+            <div class="flex items-center space-x-0.5 sm:space-x-1">
+                <!-- Download Button (Inside Editor) -->
+                <button onclick="downloadCurrentFile()" class="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400" title="Download">
+                    <i data-lucide="download" class="w-4 h-4"></i>
                 </button>
-                <button onclick="editor.redo()" class="p-2 text-gray-500 hover:text-gray-800 dark:hover:text-white" title="Redo">
-                    <i data-lucide="redo-2" class="w-4 h-4"></i>
+
+                <!-- Structure Navigator (NEW) -->
+                <button onclick="toggleStructureView()" class="p-2 text-gray-500 hover:text-purple-600 dark:hover:text-purple-400" title="Code Structure">
+                    <i data-lucide="list-tree" class="w-4 h-4"></i>
                 </button>
 
                 <!-- Search -->
                 <button onclick="toggleSearch()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
                     <i data-lucide="search" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Undo/Redo -->
+                <button onclick="editor.undo()" class="p-2 text-gray-500 hidden sm:block hover:text-gray-800 dark:hover:text-white" title="Undo">
+                    <i data-lucide="undo-2" class="w-4 h-4"></i>
                 </button>
 
                 <!-- Run -->
@@ -187,32 +203,31 @@
             </div>
         </header>
 
-        <!-- Advanced Search Panel (NEW) -->
+        <!-- Advanced Search Panel -->
         <div id="searchBar" class="hidden bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-2 animate-in slide-in-from-top duration-200 shrink-0">
             <div class="flex flex-col space-y-2">
-                <!-- Find Row -->
                 <div class="flex items-center space-x-2">
                     <div class="relative flex-1">
-                        <i data-lucide="search" class="w-3 h-3 absolute left-3 top-2.5 text-gray-400"></i>
-                        <input type="text" id="searchInput" placeholder="Find in file..." class="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="liveSearch()">
+                        <i data-lucide="search" class="w-3 h-3 absolute left-3 top-2.5 text-gray-500 dark:text-gray-400"></i>
+                        <!-- FIX: Added 'text-gray-900 dark:text-white' to ensure visibility in dark mode -->
+                        <input type="text" id="searchInput" placeholder="Find in file..." class="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="liveSearch()">
                     </div>
                     <div class="flex items-center bg-white dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
                         <button onclick="navigateMatch(-1)" class="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 border-r border-gray-300 dark:border-gray-600">
-                            <i data-lucide="chevron-up" class="w-4 h-4"></i>
+                            <i data-lucide="chevron-up" class="w-4 h-4 text-gray-600 dark:text-white"></i>
                         </button>
                         <button onclick="navigateMatch(1)" class="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-600">
-                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-600 dark:text-white"></i>
                         </button>
                     </div>
                 </div>
-                <!-- Status & Replace Row -->
                 <div class="flex items-center justify-between">
-                    <span id="searchCount" class="text-xs text-gray-500 font-mono ml-1">No results</span>
+                    <span id="searchCount" class="text-xs text-gray-500 dark:text-gray-400 font-mono ml-1">No results</span>
                     <button onclick="document.getElementById('replaceRow').classList.toggle('hidden')" class="text-xs text-blue-500 font-medium">Toggle Replace</button>
                 </div>
-                <!-- Replace Input (Hidden by default) -->
                 <div id="replaceRow" class="hidden flex space-x-2 pt-1 border-t border-gray-200 dark:border-gray-700">
-                    <input type="text" id="replaceInput" placeholder="Replace with..." class="flex-1 px-3 py-1.5 text-sm rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600">
+                    <!-- FIX: Added 'text-gray-900 dark:text-white' here too -->
+                    <input type="text" id="replaceInput" placeholder="Replace with..." class="flex-1 px-3 py-1.5 text-sm rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400">
                     <button onclick="replaceCurrent()" class="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-lg text-xs font-bold">One</button>
                     <button onclick="replaceAll()" class="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold">All</button>
                 </div>
@@ -222,6 +237,30 @@
         <!-- CodeMirror Area -->
         <main class="flex-1 relative overflow-hidden bg-white dark:bg-gray-900">
             <textarea id="codeEditor"></textarea>
+
+            <!-- Structure Navigation Modal (Overlay) -->
+            <div id="structureOverlay" class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex flex-col justify-end" onclick="toggleStructureView(false)">
+                <div class="structure-panel bg-white dark:bg-gray-800 w-full max-h-[70%] rounded-t-2xl shadow-2xl flex flex-col" onclick="event.stopPropagation()">
+                    <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-700 dark:text-gray-200 flex items-center">
+                            <i data-lucide="compass" class="w-4 h-4 mr-2 text-purple-500"></i> Navigator
+                        </h3>
+                        <button onclick="toggleStructureView(false)" class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <i data-lucide="x" class="w-5 h-5 text-gray-500 dark:text-white"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="p-3 border-b border-gray-100 dark:border-gray-700">
+                        <input type="text" id="structureSearch" placeholder="Filter sections or functions..." 
+                               class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-900 border-none rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none placeholder-gray-500"
+                               oninput="filterStructure()">
+                    </div>
+
+                    <div id="structureList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Items injected via JS -->
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Quick Symbol Toolbar -->
@@ -241,6 +280,9 @@
             </button>
             <div class="flex items-center space-x-3">
                  <span class="text-xs font-mono bg-black/30 px-2 py-1 rounded text-green-400">● Live</span>
+                <button onclick="downloadCurrentFile()" class="bg-white/10 p-1.5 rounded hover:bg-white/20">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
                 <button onclick="runCode()" class="bg-white/10 p-1.5 rounded hover:bg-white/20">
                     <i data-lucide="rotate-cw" class="w-4 h-4"></i>
                 </button>
@@ -254,7 +296,7 @@
     <script>
         // --- Initialization ---
         lucide.createIcons();
-        const symbols = ['<', '>', '{', '}', '(', ')', '[', ']', '=', ';', ':', '"', "'", '!', '$', '&', '/'];
+        const symbols = ['<', '>', '{', '}', '(', ')', '[', ']', '=', ';', ':', '"', "'", '!', '$', '&', '/', 'var', 'let', 'func'];
         
         let files = JSON.parse(localStorage.getItem('proedit_files') || '[]');
         let currentFileId = null;
@@ -284,14 +326,193 @@
             viewportMargin: Infinity
         });
 
-        // --- SEARCH SYSTEM V2 (The New Feature) ---
+        // --- EXPORT / DOWNLOAD FEATURE ---
+
+        function downloadContent(filename, content) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadCurrentFile() {
+            if (currentFileId) {
+                const file = files.find(f => f.id === currentFileId);
+                if (file) {
+                    // Always use current editor content if we are editing
+                    const content = editor.getValue(); 
+                    downloadContent(file.name, content);
+                }
+            }
+        }
+
+        function downloadFileFromList(id, event) {
+            event.stopPropagation();
+            const file = files.find(f => f.id === id);
+            if (file) {
+                downloadContent(file.name, file.content);
+            }
+        }
+
+        // --- STRUCTURE NAVIGATOR (ADVANCED SEARCH) ---
+
+        let structureItems = [];
+
+        function toggleStructureView(forceState) {
+            const overlay = document.getElementById('structureOverlay');
+            const panel = overlay.querySelector('.structure-panel');
+            
+            const isOpen = !overlay.classList.contains('hidden');
+            const shouldOpen = forceState !== undefined ? forceState : !isOpen;
+
+            if (shouldOpen) {
+                overlay.classList.remove('hidden');
+                setTimeout(() => panel.classList.add('open'), 10);
+                parseCodeStructure();
+                document.getElementById('structureSearch').value = '';
+                document.getElementById('structureSearch').focus();
+            } else {
+                panel.classList.remove('open');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        function parseCodeStructure() {
+            const code = editor.getValue();
+            const listEl = document.getElementById('structureList');
+            listEl.innerHTML = '';
+            structureItems = [];
+
+            const lines = code.split('\n');
+            
+            // Regex for various things
+            // 1. Comments behaving as Sections: // --- Title --- or /* Title */
+            const sectionRegex = /(\/\/|\/\*)\s*-*\s*([A-Za-z0-9\s_]+?)\s*-*(\*\/|$)/;
+            
+            // 2. Functions: function name(), const name = () =>
+            const funcRegex = /function\s+([a-zA-Z0-9_]+)/;
+            const arrowFuncRegex = /(const|let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(\(|async)/;
+            
+            // 3. Classes
+            const classRegex = /class\s+([a-zA-Z0-9_]+)/;
+
+            // 4. HTML IDs (for HTML files)
+            const htmlIdRegex = /id=["']([a-zA-Z0-9_-]+)["']/;
+
+            lines.forEach((line, index) => {
+                let type = null;
+                let name = null;
+
+                // Check for Section Comments (Highest Priority)
+                const secMatch = line.match(sectionRegex);
+                if (secMatch && line.length < 80) { // Limit length to avoid matching long paragraphs
+                     // Ensure it looks like a header (optional check)
+                     if(line.includes('---') || line.includes('===')) {
+                        type = 'section';
+                        name = secMatch[2].trim();
+                     }
+                }
+
+                if (!type) {
+                    const fnMatch = line.match(funcRegex);
+                    if (fnMatch) { type = 'function'; name = fnMatch[1]; }
+                }
+                
+                if (!type) {
+                    const arrMatch = line.match(arrowFuncRegex);
+                    if (arrMatch) { type = 'function'; name = arrMatch[2]; }
+                }
+
+                if (!type) {
+                    const clsMatch = line.match(classRegex);
+                    if (clsMatch) { type = 'class'; name = clsMatch[1]; }
+                }
+
+                if (!type && editor.getOption('mode') === 'htmlmixed') {
+                    const idMatch = line.match(htmlIdRegex);
+                    if (idMatch) { type = 'html-id'; name = '#' + idMatch[1]; }
+                }
+
+                if (type && name) {
+                    structureItems.push({ type, name, line: index });
+                }
+            });
+
+            renderStructureList(structureItems);
+        }
+
+        function renderStructureList(items) {
+            const listEl = document.getElementById('structureList');
+            listEl.innerHTML = '';
+
+            if (items.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-gray-400 py-4 text-sm">No structure found.<br>Use // --- Title --- for sections.</div>';
+                return;
+            }
+
+            items.forEach(item => {
+                const el = document.createElement('div');
+                
+                // Styling based on type
+                let icon = '';
+                let classes = 'flex items-center p-2 rounded cursor-pointer transition-colors text-sm ';
+                
+                if (item.type === 'section') {
+                    classes += 'bg-gray-100 dark:bg-gray-700 font-bold text-gray-800 dark:text-gray-100 mt-2';
+                    icon = '<i data-lucide="heading" class="w-4 h-4 mr-2 text-blue-500"></i>';
+                } else if (item.type === 'function') {
+                    classes += 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-600 dark:text-gray-300 ml-2';
+                    icon = '<i data-lucide="braces" class="w-3 h-3 mr-2 text-purple-500"></i>';
+                } else if (item.type === 'class') {
+                    classes += 'hover:bg-gray-50 dark:hover:bg-gray-700/50 font-semibold text-yellow-600 dark:text-yellow-400';
+                    icon = '<i data-lucide="box" class="w-3 h-3 mr-2"></i>';
+                } else {
+                    classes += 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-500 ml-2';
+                    icon = '<i data-lucide="hash" class="w-3 h-3 mr-2 text-green-500"></i>';
+                }
+
+                el.className = classes;
+                el.innerHTML = `${icon}<span>${item.name}</span>`;
+                el.onclick = () => jumpToLine(item.line);
+                listEl.appendChild(el);
+            });
+            lucide.createIcons();
+        }
+
+        function filterStructure() {
+            const query = document.getElementById('structureSearch').value.toLowerCase();
+            const filtered = structureItems.filter(item => item.name.toLowerCase().includes(query));
+            renderStructureList(filtered);
+        }
+
+        function jumpToLine(lineIdx) {
+            toggleStructureView(false);
+            editor.setCursor({ line: lineIdx, ch: 0 });
+            editor.scrollIntoView({ line: lineIdx, ch: 0 }, 100);
+            editor.focus();
+            
+            // Highlight momentarily
+            const mark = editor.markText(
+                { line: lineIdx, ch: 0 }, 
+                { line: lineIdx + 1, ch: 0 }, 
+                { className: "cm-search-match-active" }
+            );
+            setTimeout(() => mark.clear(), 1500);
+        }
+
+        // --- SEARCH SYSTEM (Existing) ---
 
         function toggleSearch() {
             const bar = document.getElementById('searchBar');
             bar.classList.toggle('hidden');
             if(!bar.classList.contains('hidden')) {
                 document.getElementById('searchInput').focus();
-                liveSearch(); // refresh in case cursor moved
+                liveSearch();
             } else {
                 clearSearch();
                 editor.focus();
@@ -308,7 +529,7 @@
 
         function liveSearch() {
             const query = document.getElementById('searchInput').value;
-            if (query === searchState.query && searchState.matches.length > 0) return; // No change
+            if (query === searchState.query && searchState.matches.length > 0) return;
             
             clearSearch();
             searchState.query = query;
@@ -320,61 +541,33 @@
                 const from = cursor.from();
                 const to = cursor.to();
                 searchState.matches.push({ from, to });
-                // Mark all matches lightly
                 searchState.marks.push(editor.markText(from, to, { className: "cm-search-match" }));
             }
 
             if (searchState.matches.length > 0) {
-                // Find match closest to current cursor to start there
                 const docCursor = editor.getCursor();
-                // Simple approximation: find first match after cursor
                 let nextIdx = searchState.matches.findIndex(m => m.from.line >= docCursor.line && m.from.ch >= docCursor.ch);
-                if (nextIdx === -1) nextIdx = 0; // Wrap to start
+                if (nextIdx === -1) nextIdx = 0;
                 
                 searchState.currentIndex = nextIdx;
                 highlightActiveMatch();
             }
-            
             updateSearchUI();
         }
 
         function navigateMatch(direction) {
             if (searchState.matches.length === 0) return;
-
             searchState.currentIndex += direction;
-            
-            // Handle Wrap around
             if (searchState.currentIndex >= searchState.matches.length) searchState.currentIndex = 0;
             if (searchState.currentIndex < 0) searchState.currentIndex = searchState.matches.length - 1;
-
             highlightActiveMatch();
             updateSearchUI();
         }
 
         function highlightActiveMatch() {
-            // Remove "active" class from all (hacky but effective way without storing complex state)
-            // Ideally we re-render marks, but for speed, let's just clear and redraw specific active mark?
-            // Actually, we can just add a second mark on top for the active one.
-            
-            // Clear previous active highlights if any (we'll just clear all and re-add basic marks, then add active)
-            // For performance on mobile, let's just use scrollIntoView and Selection
-            
             const match = searchState.matches[searchState.currentIndex];
-            
-            // Scroll and Select
             editor.setSelection(match.from, match.to);
             editor.scrollIntoView({from: match.from, to: match.to}, 50);
-
-            // Re-apply marks to ensure only one is "active" style
-            // Note: CodeMirror doesn't easily support changing class of existing mark.
-            // So we rely on selection color usually, but let's add a specific 'active' mark.
-            
-            // Clear OLD active marks (stored in a separate prop if we wanted, but let's keep it simple)
-            // Just rely on the Selection color (Blue/Grey) which is standard.
-            // BUT user asked for highlight.
-            
-            // Let's rely on the native selection for the "Active" one, 
-            // and the yellow background for the "Others".
         }
 
         function updateSearchUI() {
@@ -389,16 +582,14 @@
         function replaceCurrent() {
             if (searchState.matches.length === 0) return;
             const replacement = document.getElementById('replaceInput').value;
-            editor.replaceSelection(replacement); // Replaces the currently selected (active) match
-            liveSearch(); // Re-index everything
+            editor.replaceSelection(replacement);
+            liveSearch();
         }
 
         function replaceAll() {
             const query = document.getElementById('searchInput').value;
             const replacement = document.getElementById('replaceInput').value;
             if (!query) return;
-            
-            // CodeMirror's operation method for atomic update
             editor.operation(() => {
                 const cursor = editor.getSearchCursor(query);
                 while (cursor.findNext()) {
@@ -408,7 +599,7 @@
             liveSearch();
         }
 
-        // --- Toolbar & Init Logic (Standard) ---
+        // --- Toolbar & Init Logic ---
 
         const toolbar = document.getElementById('symbolToolbar');
         
@@ -489,9 +680,9 @@
         }
 
         function getTemplate(filename) {
-            if (filename.endsWith('.js')) return `// ${filename}\nconsole.log("Hello from " + "${filename}");`;
-            if (filename.endsWith('.css')) return `/* ${filename} */\nbody { background: #f0f0f0; }`;
-            if (filename.endsWith('.html')) return `<!DOCTYPE html>\n<html>\n<body>\n  <h1>New Page</h1>\n</body>\n</html>`;
+            if (filename.endsWith('.js')) return `// --- SETUP ---\n\n// Welcome to ${filename}\nconsole.log("Hello!");\n\n// --- FUNCTIONS ---\n\nfunction init() {\n    // Code here\n}`;
+            if (filename.endsWith('.css')) return `/* --- STYLES --- */\n\nbody {\n    background: #f0f0f0;\n}`;
+            if (filename.endsWith('.html')) return `<!DOCTYPE html>\n<html>\n<!-- --- HEAD --- -->\n<head>\n    <title>New Page</title>\n</head>\n<body>\n    <!-- --- CONTENT --- -->\n    <h1 id="mainTitle">Hello World</h1>\n</body>\n</html>`;
             return '';
         }
 
@@ -577,18 +768,23 @@
                     card.onclick = () => openFile(file.id);
                     
                     card.innerHTML = `
-                        <div class="flex items-center space-x-4">
-                            <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="flex items-center space-x-4 min-w-0">
+                            <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg shrink-0">
                                 <i data-lucide="${iconName}" class="w-6 h-6 ${color}"></i>
                             </div>
-                            <div>
-                                <h3 class="font-bold text-gray-800 dark:text-gray-100 text-sm truncate w-40">${file.name}</h3>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 dark:text-gray-100 text-sm truncate w-32 sm:w-48">${file.name}</h3>
                                 <p class="text-xs text-gray-400">Modified: ${date}</p>
                             </div>
                         </div>
-                        <button onclick="deleteFile('${file.id}', event)" class="p-2 text-gray-300 hover:text-red-500">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="downloadFileFromList('${file.id}', event)" class="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i data-lucide="download" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="deleteFile('${file.id}', event)" class="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
                     `;
                     list.appendChild(card);
                 });
@@ -655,3 +851,4 @@
     </script>
 </body>
 </html>
+
